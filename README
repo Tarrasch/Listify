@@ -1,0 +1,10 @@
+This is an attempt by Arash Rouhani to make a interactive cmd-line program.
+
+The program should be able to some extent handle Spotify playlists.
+
+It's intended to be able to compile itself simply by running "> make".
+
+Indeed, this project is mainly copied code from the two example projects
+spshell and jukebox. Both of which are under Spotifys ownership.
+
+
