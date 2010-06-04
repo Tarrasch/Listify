@@ -1,8 +1,9 @@
+#include <string.h>
 #include "listify.h"
 #include "cmd.h"
 
 
-
+extern const char* get_link_type_label(sp_linktype lt);
 /* --- Data --- */
 sp_playlistcontainer *g_pc;
 
@@ -162,7 +163,20 @@ sp_playlistcontainer_callbacks pc_callbacks = {
 
 /* ---------------------------  SESSION CALLBACKS  ------------------------- */
 
-/*
+/*static const char* get_link_type_label(sp_link *link)
+{
+    static const char *LINK_TYPES[] = {
+        "invalid",
+        "track",
+        "album",
+        "artist",
+        "search",
+        "playlist"
+    };
+
+    return LINK_TYPES[sp_link_type(link)];
+}
+
  * 
  * The session callbacks aren't the real callbacks. But are invoked
  * by the respective real callback-functions. So for example, at each
@@ -197,6 +211,12 @@ void logged_in_playlist(sp_session* session){
 
 /* -------------------------  IMPLEMENTED COMMANDS  ------------------------ */
 
+/*
+ * 
+ * The Implemented commands are those non-callback functions that the
+ * user can call from the Programs menu.
+ * 
+ * */
 
 
 /**
@@ -207,15 +227,25 @@ void logged_in_playlist(sp_session* session){
  * 
  */
 int cmd_new_playlist(int argc, char **argv){
+	char buff[200];
+	const int buffSize = 200;
 	if(argc != 2){		
 		fprintf(stderr, "Usage: %s <name>\n", argv[0]);
 		return -1;
 	}
+	
 	sp_playlist *pl = sp_playlistcontainer_add_new_playlist(g_pc, argv[1]);
 	if(!pl){
 		fprintf(stderr, "new_playlist: adding playlist with name %s failed\n", argv[0]);
 		return -1;		
 	}
+	// Get the sp_link-handle for the playlist
+	sp_link *spl = sp_link_create_from_playlist(pl);
+	
+	// Get the URI of the link.
+	sp_link_as_string(spl, buff, buffSize);
+	
+	printf("The new playlist has the URI %s.\n", buff);
 	
 	return 0;
 }
@@ -223,7 +253,10 @@ int cmd_new_playlist(int argc, char **argv){
 /**
  * Clear a playlist
  * 
- * @param string containing the name of the playlist.
+ * @param 1
+ * The first token should be the full URI of the playlist, like:
+ * spotify:user:JohnSmith:playlist:68sMl8CBblj6uBcqbJsnoj
+ * 
  * @return -1 if fails. 0 otherwise.
  */
 int cmd_clear_playlist(int argc, char **argv){
@@ -233,7 +266,14 @@ int cmd_clear_playlist(int argc, char **argv){
 
 
 /**
- * Add a track to a given playlist
+ * Add a track to the end of a given playlist.
+ * 
+ * @param 1
+ * The first token should be the full URI of the playlist, like:
+ * spotify:user:JohnSmith:playlist:68sMl8CBblj6uBcqbJsnoj
+ * @param 2
+ * The second token should be the full URI of the track, like:
+ * spotify:track:3GhpgjhCNZZa6Lb7Wtrp3S
  * 
  * @return -1 if fails. 0 otherwise.
  */
@@ -242,6 +282,71 @@ int cmd_add_track(int argc, char **argv){
 	return 0;	
 }
 
+
+/**
+ * Remove a playlist from our container. Where 'our container' refers
+ * to the container that is g_pc, which should be the users container
+ * if the user has successfuly logged in.
+ * 
+ * Indeed letting the playlist exist yet be removed from our container
+ * gives the illusion of "hiding" the playlist.
+ * 
+ * @param 1
+ * The first token should be the full URI of the playlist, like:
+ * spotify:user:JohnSmith:playlist:68sMl8CBblj6uBcqbJsnoj
+ * 
+ * @return -1 if fails. 0 otherwise.
+ */
+int cmd_hide_playlist(int argc, char **argv){
+	if(argc != 2){
+		fprintf(stderr, "Usage: %s <URI>\n", argv[0]);
+		return -1;
+	}	
+	sp_link *link = sp_link_create_from_string(argv[1]);
+	if(!link) {
+        fprintf(stderr, "failed to get link from a Spotify URI\n");
+        return -1;
+    }
+	sp_linktype lt = sp_link_type(link);
+	if(lt != SP_LINKTYPE_PLAYLIST){
+		const char * link_type_label = get_link_type_label(lt);		
+		fprintf(stderr, "The URI was of type '%s', not as the exptected '%s'\n", link_type_label, get_link_type_label(SP_LINKTYPE_PLAYLIST));
+		return -1;	
+	}
+	
+	//So by now we know that the given argument is a correct URI
+	//of type playlist. So now let's now go through the elements of our
+	//container, the container will maybe contain a playlist who has 
+	//"the same sp_link", which means they are equal.
+	int i  =  0;
+	int n = sp_playlistcontainer_num_playlists(g_pc);
+	int lengthURI = strlen(argv[1]);
+	while(i < n){
+		static char buff[100];
+		sp_playlist * pl = sp_playlistcontainer_playlist(g_pc, i);
+		sp_link *link2 = sp_link_create_from_playlist(pl);
+		
+		if(sp_link_as_string(link2, buff, lengthURI+3) == lengthURI &&
+		   strcmp(argv[1], buff) == 0 ){
+			//we found a match
+			break;
+		}
+		i++;
+	}
+	if(i == n){
+		printf("There was no link with the given URI inside the container.\n");
+		return -1;
+	}
+	
+	//now let's try to remove it
+	sp_link_add_ref(link); //ok, I doubt it will ever be released now ...
+	sp_error err = sp_playlistcontainer_remove_playlist(g_pc, i);
+	if(err != SP_ERROR_OK){
+		fprintf(stderr, "Error '%s' when trying to delete the playlist. ", sp_error_message(err));
+		return -1;
+	}
+	return 0;
+}
 
 /* ---------------------- END  IMPLEMENTED COMMANDS  ------------------------ */
 
