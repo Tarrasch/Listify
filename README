@@ -14,8 +14,8 @@ COMPILATION:
   0. If you haven't installed libspotify and tested the provided
      example programs, then do so first.
 
-  1. Put your api.c into the folder. api.c contains the application key
-     provided by Spotify, it should be very similiar to example_api.c.
+  1. Put your appkey.c into the folder. appkey.c contains the application key
+     provided by Spotify, it should be very similiar to example_appkey.c.
      Note that the application key is only provided to Spotify premium users.
      
   2. Open a terminal in the folder and run the command 'make'.
@@ -25,11 +25,11 @@ COMPILATION:
 COMPILATION TROUBLESHOOTING:
   
   Even though I wish, I doubt compilation will work right away. So I
-  write a list of typical mistakes:
+  write a list of typical errors:
   
   * For some reason, neither of <readline/readline.h> and <readline/history.h>
     where "include-able" for me at first. But I just googled it
-    which told me to install some Ubuntu package and then it worked.  
+    which told me to install the package 'libreadline5-dev' and then it worked.
   
   * Make sure that libspotify is installed.
   

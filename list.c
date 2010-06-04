@@ -211,10 +211,12 @@ int cmd_new_playlist(int argc, char **argv){
 		fprintf(stderr, "Usage: %s <name>\n", argv[0]);
 		return -1;
 	}
-	if(!sp_playlistcontainer_add_new_playlist(g_pc, argv[1])){
+	sp_playlist *pl = sp_playlistcontainer_add_new_playlist(g_pc, argv[1]);
+	if(!pl){
 		fprintf(stderr, "new_playlist: adding playlist with name %s failed\n", argv[0]);
 		return -1;		
 	}
+	
 	return 0;
 }
 

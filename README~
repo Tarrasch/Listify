@@ -25,7 +25,7 @@ COMPILATION:
 COMPILATION TROUBLESHOOTING:
   
   Even though I wish, I doubt compilation will work right away. So I
-  write a list of typical mistakes:
+  write a list of typical error:
   
   * For some reason, neither of <readline/readline.h> and <readline/history.h>
     where "include-able" for me at first. But I just googled it
@@ -44,7 +44,7 @@ USAGE:
   1. Login using your normal spotify login, the very same you use
      to login inside the program.
      
-  2. Type help and then you're on your own! :)
+  2. Type help and then you're on your off on your own! :)
 
 FURTHER NOTES:
 
