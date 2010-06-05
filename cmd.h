@@ -34,6 +34,7 @@ extern void cmd_done(void);
 
 extern int cmd_logout(int argc, char **argv);
 extern int cmd_new_playlist(int argc, char **argv);
+extern int cmd_add_playlist(int argc, char **argv);
 extern int cmd_clear_playlist(int argc, char **argv);
 extern int cmd_add_track(int argc, char **argv);
 extern int cmd_hide_playlist(int argc, char **argv);

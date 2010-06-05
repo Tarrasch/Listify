@@ -1,9 +1,11 @@
 #include <string.h>
 #include "listify.h"
 #include "cmd.h"
+#include "link.h"
 
 
 extern const char* get_link_type_label(sp_linktype lt);
+extern sp_link* URI_to_link(const char *URI);
 /* --- Data --- */
 sp_playlistcontainer *g_pc;
 
@@ -220,7 +222,7 @@ void logged_in_playlist(sp_session* session){
 
 
 /**
- * Add a new playlist
+ * Create a new playlist.
  * 
  * @param string containing the name of the playlist.
  * @return -1 if fails. 0 otherwise.
@@ -250,6 +252,31 @@ int cmd_new_playlist(int argc, char **argv){
 	return 0;
 }
 
+
+
+
+/**
+ * Add an existing playlist to our container. 
+ * 
+ * @param string containing the name of the playlist.
+ * @return -1 if fails. 0 otherwise.
+ * 
+ */
+int cmd_add_playlist(int argc, char **argv){	
+	if(argc != 2){
+		fprintf(stderr, "Usage: %s <URI>\n", argv[0]);
+		return -1;
+	}	
+	sp_link *link = URI_to_link(argv[1]);
+	sp_playlist *pl = sp_playlistcontainer_add_playlist(g_pc, link);
+	if(!pl){
+		fprintf(stderr, "Couldn't add the link to the container, is it already in the container?\n");
+		return -1;
+	}
+	return 0;
+}
+
+
 /**
  * Clear a playlist
  * 
@@ -260,8 +287,27 @@ int cmd_new_playlist(int argc, char **argv){
  * @return -1 if fails. 0 otherwise.
  */
 int cmd_clear_playlist(int argc, char **argv){
-	return 0;
-	
+	if(argc != 2){
+		fprintf(stderr, "Usage: %s <URI>\n", argv[0]);
+		return -1;
+	}	
+	sp_playlist *pl = URI_to_playlist(argv[1]);
+	if(!pl){		
+		fprintf(stderr, "The given URI couldn't be converted to a playlist\n");
+        return -1; // URI -> playlist failed	
+	}
+	int n = sp_playlist_num_tracks(pl);
+	int array[n];
+	int i;
+	for(i = 0; i < n; i++){
+		array[i] = i;
+	}
+	sp_error err = sp_playlist_remove_tracks(pl, array, n); // remove all tracks in it.
+	if(err != SP_ERROR_OK){
+		fprintf(stderr, "Error '%s' when trying to delete tracks of the playlist.\n", sp_error_message(err));
+		return -1;
+	}
+	return 0;	
 }
 
 
@@ -302,50 +348,7 @@ int cmd_hide_playlist(int argc, char **argv){
 		fprintf(stderr, "Usage: %s <URI>\n", argv[0]);
 		return -1;
 	}	
-	sp_link *link = sp_link_create_from_string(argv[1]);
-	if(!link) {
-        fprintf(stderr, "failed to get link from a Spotify URI\n");
-        return -1;
-    }
-	sp_linktype lt = sp_link_type(link);
-	if(lt != SP_LINKTYPE_PLAYLIST){
-		const char * link_type_label = get_link_type_label(lt);		
-		fprintf(stderr, "The URI was of type '%s', not as the exptected '%s'\n", link_type_label, get_link_type_label(SP_LINKTYPE_PLAYLIST));
-		return -1;	
-	}
-	
-	//So by now we know that the given argument is a correct URI
-	//of type playlist. So now let's now go through the elements of our
-	//container, the container will maybe contain a playlist who has 
-	//"the same sp_link", which means they are equal.
-	int i  =  0;
-	int n = sp_playlistcontainer_num_playlists(g_pc);
-	int lengthURI = strlen(argv[1]);
-	while(i < n){
-		static char buff[100];
-		sp_playlist * pl = sp_playlistcontainer_playlist(g_pc, i);
-		sp_link *link2 = sp_link_create_from_playlist(pl);
-		
-		if(sp_link_as_string(link2, buff, lengthURI+3) == lengthURI &&
-		   strcmp(argv[1], buff) == 0 ){
-			//we found a match
-			break;
-		}
-		i++;
-	}
-	if(i == n){
-		printf("There was no link with the given URI inside the container.\n");
-		return -1;
-	}
-	
-	//now let's try to remove it
-	sp_link_add_ref(link); //ok, I doubt it will ever be released now ...
-	sp_error err = sp_playlistcontainer_remove_playlist(g_pc, i);
-	if(err != SP_ERROR_OK){
-		fprintf(stderr, "Error '%s' when trying to delete the playlist. ", sp_error_message(err));
-		return -1;
-	}
-	return 0;
+	return hide_playlist(argv[1]);
 }
 
 /* ---------------------- END  IMPLEMENTED COMMANDS  ------------------------ */
