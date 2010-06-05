@@ -41,7 +41,7 @@ struct {
 	{ "new_list",   cmd_new_playlist,   "Add a new playlist with a given name" },
 	{ "add_list",   cmd_add_playlist,   "Given a URI add the playlist to our container." },
 	{ "clear_list", cmd_clear_playlist, "Clear a playlist, given it's URI" },
-	{ "add_track",  cmd_add_track,      "Add a track to a list." },
+	{ "add_tracks", cmd_add_track,      "Add tracks to a list." },
 	{ "hide_list",  cmd_hide_playlist,  "Hide the given playlist."},
 	{ "help",       cmd_help,           "This help" },
 };

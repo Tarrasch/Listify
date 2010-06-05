@@ -324,8 +324,57 @@ int cmd_clear_playlist(int argc, char **argv){
  * @return -1 if fails. 0 otherwise.
  */
 int cmd_add_track(int argc, char **argv){
+	if(argc < 3){
+		fprintf(stderr, "Usage: %s <URI-playlist> <URI-track 1> <URI-track 2> ...\n", argv[0]);
+		return -1;
+	}
+	// let's retrieve the playlist	
+	sp_playlist *pl = URI_to_playlist(argv[1]);
+	if(!pl){		
+		fprintf(stderr, "The given URI couldn't be converted to a playlist\n");
+        return -1; // URI -> playlist failed	
+	}
 	
-	return 0;	
+	// let's retrieve the tracks
+	int n = argc-2;
+	sp_track *tracks[n];
+	int i;
+	for(i = 0; i < n; i++){		
+		const char * track_URI = argv[2+i];
+		sp_link *track_link = sp_link_create_from_string(track_URI);
+		if(!track_link) {
+			fprintf(stderr, "failed to get link from a Spotify URI\n");
+			return -1;
+		}
+		sp_linktype lt = sp_link_type(track_link);
+		if(lt != SP_LINKTYPE_TRACK){
+			const char * link_type_label = get_link_type_label(lt);		
+			fprintf(stderr, "The URI was of type '%s', not as the exptected '%s'\n", link_type_label, get_link_type_label(SP_LINKTYPE_TRACK));
+			return -1;
+		}
+
+		sp_track *track = sp_link_as_track(track_link);
+		
+		if(!track){		
+			fprintf(stderr, "Failed to retrieve the track from the link %s\n", track_URI);
+			return -1;
+		}
+		tracks[i] = track;
+	}
+	//Now we hopefully got non-corrupt pointers to both the
+	//playlist and the tracks.
+	
+	int end = sp_playlist_num_tracks(pl);
+	sp_error err = sp_playlist_add_tracks(pl, (const sp_track**)tracks, n, end, g_session);
+	if(err != SP_ERROR_OK){
+		fprintf(stderr, "Error '%s' when trying to insert one track to the playlist.\n", sp_error_message(err));
+		return -1;
+	}
+	return 0;
+	
+	// For some reason, for version 0.0.4, as I've understood it they
+	// want sp_playlist_add_tracks take the session as an additional
+	// last arguement. Which at least compiles for me.
 }
 
 
