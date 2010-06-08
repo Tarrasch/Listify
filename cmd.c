@@ -36,14 +36,16 @@ struct {
 	int (*fn)(int argc, char **argv);
 	const char *help;
 } commands[] = {
-	{ "logout",     cmd_logout,         "Logout and exit app" },
-	{ "exit",       cmd_logout,         "Logout and exit app" },
-	{ "new_list",   cmd_new_playlist,   "Add a new playlist with a given name" },
-	{ "add_list",   cmd_add_playlist,   "Given a URI add the playlist to our container." },
-	{ "clear_list", cmd_clear_playlist, "Clear a playlist, given it's URI" },
-	{ "add_tracks", cmd_add_track,      "Add tracks to a list." },
-	{ "hide_list",  cmd_hide_playlist,  "Hide the given playlist."},
-	{ "help",       cmd_help,           "This help" },
+	{ "logout",       cmd_logout,         "Logout and exit app" },
+	{ "exit",         cmd_logout,         "Logout and exit app" },
+	{ "new_list",     cmd_new_playlist,   "Add a new playlist with a given name." },
+	{ "new_hide",     cmd_new_hide,       "Add a new playlist. Then hide it"},
+	{ "add_list",     cmd_add_playlist,   "Given a URI add the playlist to our container." },
+	{ "clear_list",   cmd_clear_playlist, "Clear a playlist, given it's URI" },
+	{ "add_tracks",   cmd_add_tracks,     "Add tracks to a list." },
+	{ "count_tracks", cmd_count_tracks,   "Counts the amount of tracks in a playlist." },
+	{ "hide_list",    cmd_hide_playlist,  "Hide the given playlist. (Inverse of add)"},
+	{ "help",         cmd_help,           "This help" },
 };
 
 

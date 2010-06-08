@@ -2,6 +2,7 @@
 
 #include "link.h"
 #include "list.h"
+#include "listify.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -72,13 +73,10 @@ sp_link* URI_to_link(const char *URI){
  * 
  * @return the playlist if succeded, NULL if failed.
  * */
-/*
- * The implementation is troublesome if we don't know the URI
- * so i skip this one
- * 
+
 sp_playlist *sp_link_as_playlist(sp_link *link){
+	return sp_playlist_create(g_session, link);
 }
-*/
 
 
 /**
@@ -93,65 +91,13 @@ sp_playlist *sp_link_as_playlist(sp_link *link){
  * 
  * */
 sp_playlist *URI_to_playlist(const char *URI){
-	// There are two possible cases to solve for.
-	
-	// Case 1: The list is already in our container.
-	//         if that is the case, let's find it and return the 
-	//         playlist.	
-	{
-		int i  =  0;
-		int n = sp_playlistcontainer_num_playlists(g_pc);
-		int lengthURI = strlen(URI);
-		while(i < n){
-			static char buff[100];
-			sp_playlist * pl = sp_playlistcontainer_playlist(g_pc, i);
-			sp_link *link2 = sp_link_create_from_playlist(pl);
-			
-			if(sp_link_as_string(link2, buff, lengthURI+3) == lengthURI &&
-			   strcmp(URI, buff) == 0 ){
-				//we found a match
-				return pl;
-			}
-			i++;
-		}	
-		// If we are out of the while loop, no match has been found
-		// So let's fall through and assume that the playlist
-		// wasn't in our container.
+	sp_link *link = URI_to_link(URI);
+	if(!link) {
+		fprintf(stderr, "URI --> link failed!\n");
+		return NULL;
 	}
-	
-	// Case 2: The list isn't present in our container.
-	//         In this case we have to add the link to our container,
-	//         check what playlist it returned and then again 
-	//         remove the playlist from the container.
-	//         Note that the link could be added for any container,
-	//         but still we only have access to one.
-	//         (only one scope-wise AND spotify has only provided us one)  
-	{
-		sp_link* link = URI_to_link(URI);
-		
-		if(!link) {
-			fprintf(stderr, "link arguement to sp_link_as_playlist() was null!\n");
-			return NULL;
-		}
-		sp_linktype lt = sp_link_type(link);
-		if(lt != SP_LINKTYPE_PLAYLIST){
-			const char * link_type_label = get_link_type_label(lt);		
-			fprintf(stderr, "The URI was of type '%s', not as the expected '%s'\n", link_type_label, get_link_type_label(SP_LINKTYPE_PLAYLIST));
-			return NULL;	
-		}
-		
-		sp_playlist *pl = sp_playlistcontainer_add_playlist(g_pc, link);
-		if(!pl){
-			fprintf(stderr, "Couldn't add the link to the container, is it already in the container?\n");
-			return NULL;
-		}
-		hide_playlist(URI);
-		
-		return pl;
-	}
+	return sp_link_as_playlist(link);
 }
-
-
 
 
 /**
@@ -170,9 +116,10 @@ sp_playlist *URI_to_playlist(const char *URI){
  * */  
 int hide_playlist(const char *URI){
 	sp_link *link = URI_to_link(URI);
-	if(!link) 
+	if(!link){
+		fprintf(stderr, "URI --> link failed!\n");
         return -1; // URI -> playlist failed
-	
+	}
 	//So by now we know that the given argument is a correct URI
 	//of type playlist. So now let's now go through the elements of our
 	//container, the container will maybe contain a playlist who has 
@@ -204,6 +151,6 @@ int hide_playlist(const char *URI){
 		fprintf(stderr, "Error '%s' when trying to delete the playlist.\n", sp_error_message(err));
 		return -1;
 	}
-	return 0;
+	return -1;
 }
 

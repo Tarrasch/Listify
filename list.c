@@ -1,11 +1,10 @@
 #include <string.h>
+#include <libspotify/api.h>
 #include "listify.h"
 #include "cmd.h"
 #include "link.h"
+#include "list.h"
 
-
-extern const char* get_link_type_label(sp_linktype lt);
-extern sp_link* URI_to_link(const char *URI);
 /* --- Data --- */
 sp_playlistcontainer *g_pc;
 
@@ -225,41 +224,49 @@ void logged_in_playlist(sp_session* session){
  * Create a new playlist.
  * 
  * @param string containing the name of the playlist.
- * @return -1 if fails. 0 otherwise.
+ * @return -1.
  * 
  */
-int cmd_new_playlist(int argc, char **argv){
-	char buff[200];
-	const int buffSize = 200;
+int cmd_new_playlist(int argc, char **argv){	
 	if(argc != 2){		
 		fprintf(stderr, "Usage: %s <name>\n", argv[0]);
 		return -1;
 	}
-	
-	sp_playlist *pl = sp_playlistcontainer_add_new_playlist(g_pc, argv[1]);
-	if(!pl){
-		fprintf(stderr, "new_playlist: adding playlist with name %s failed\n", argv[0]);
-		return -1;		
+	char *URI = new_playlist(argv[1]);
+	if(!URI){
+		fprintf(stderr, "Failed in creating a new playlist");
 	}
-	// Get the sp_link-handle for the playlist
-	sp_link *spl = sp_link_create_from_playlist(pl);
 	
-	// Get the URI of the link.
-	sp_link_as_string(spl, buff, buffSize);
-	
-	printf("The new playlist has the URI %s.\n", buff);
-	
-	return 0;
+	printf("The new playlist has the URI\n%s\n", URI);
+	free(URI);
+	return -1;
 }
 
 
+
+int cmd_new_hide(int argc, char **argv){
+	if(argc != 2){		
+		fprintf(stderr, "Usage: %s <name>\n", argv[0]);
+		return -1;
+	}
+	char *URI = new_playlist(argv[1]);
+	if(!URI){
+		fprintf(stderr, "Failed in creating a new playlist");
+	}
+	
+	printf("The new playlist has the URI\n%s\n", URI);
+	hide_playlist(URI); // In this verison we also hide the playlist
+	free(URI);
+	return -1;
+	
+}
 
 
 /**
  * Add an existing playlist to our container. 
  * 
  * @param string containing the name of the playlist.
- * @return -1 if fails. 0 otherwise.
+ * @return -1.
  * 
  */
 int cmd_add_playlist(int argc, char **argv){	
@@ -268,12 +275,16 @@ int cmd_add_playlist(int argc, char **argv){
 		return -1;
 	}	
 	sp_link *link = URI_to_link(argv[1]);
+	if(!link){
+		fprintf(stderr, "URI couldn't be translated, can't add it to the playlist.\n");
+		return -1;		
+	}
 	sp_playlist *pl = sp_playlistcontainer_add_playlist(g_pc, link);
 	if(!pl){
 		fprintf(stderr, "Couldn't add the link to the container, is it already in the container?\n");
 		return -1;
 	}
-	return 0;
+	return -1;
 }
 
 
@@ -284,7 +295,7 @@ int cmd_add_playlist(int argc, char **argv){
  * The first token should be the full URI of the playlist, like:
  * spotify:user:JohnSmith:playlist:68sMl8CBblj6uBcqbJsnoj
  * 
- * @return -1 if fails. 0 otherwise.
+ * @return -1.
  */
 int cmd_clear_playlist(int argc, char **argv){
 	if(argc != 2){
@@ -297,22 +308,25 @@ int cmd_clear_playlist(int argc, char **argv){
         return -1; // URI -> playlist failed	
 	}
 	int n = sp_playlist_num_tracks(pl);
-	int array[n];
-	int i;
-	for(i = 0; i < n; i++){
-		array[i] = i;
+	if(n > 0){
+		// for some reason it seems like something crashes when n = 0
+		int array[n];
+		int i;
+		for(i = 0; i < n; i++){
+			array[i] = i;
+		}
+		sp_error err = sp_playlist_remove_tracks(pl, array, n); // remove all tracks in it.
+		if(err != SP_ERROR_OK){
+			fprintf(stderr, "Error '%s' when trying to delete tracks of the playlist.\n", sp_error_message(err));
+			return -1;
+		}
 	}
-	sp_error err = sp_playlist_remove_tracks(pl, array, n); // remove all tracks in it.
-	if(err != SP_ERROR_OK){
-		fprintf(stderr, "Error '%s' when trying to delete tracks of the playlist.\n", sp_error_message(err));
-		return -1;
-	}
-	return 0;	
+	return -1;	
 }
 
 
 /**
- * Add a track to the end of a given playlist.
+ * Add tracks to the end of a given playlist.
  * 
  * @param 1
  * The first token should be the full URI of the playlist, like:
@@ -321,9 +335,9 @@ int cmd_clear_playlist(int argc, char **argv){
  * The second token should be the full URI of the track, like:
  * spotify:track:3GhpgjhCNZZa6Lb7Wtrp3S
  * 
- * @return -1 if fails. 0 otherwise.
+ * @return -1.
  */
-int cmd_add_track(int argc, char **argv){
+int cmd_add_tracks(int argc, char **argv){
 	if(argc < 3){
 		fprintf(stderr, "Usage: %s <URI-playlist> <URI-track 1> <URI-track 2> ...\n", argv[0]);
 		return -1;
@@ -370,12 +384,44 @@ int cmd_add_track(int argc, char **argv){
 		fprintf(stderr, "Error '%s' when trying to insert one track to the playlist.\n", sp_error_message(err));
 		return -1;
 	}
-	return 0;
+	return -1;
 	
 	// For some reason, for version 0.0.4, as I've understood it they
 	// want sp_playlist_add_tracks take the session as an additional
 	// last arguement. Which at least compiles for me.
 }
+
+
+/**
+ * Count the amount of tracks in a playlist.
+ * I mainly created this to see how "safe" the counting function is.
+ * 
+ * @param the URI
+ * 
+ * @return -1.
+ * */
+int cmd_count_tracks(int argc, char **argv){
+	printf("Hi!\n");
+	if(argc != 2){
+		fprintf(stderr, "Usage: %s <URI>\n", argv[0]);
+		return -1;
+	}	
+	printf("Hi!\n");
+	sp_playlist *pl = URI_to_playlist(argv[1]);
+	printf("Hi!\n");
+	if(!pl){		
+		fprintf(stderr, "The given URI couldn't be converted to a playlist\n");
+        return -1; // URI -> playlist failed	
+	}
+	printf("Hi!\n");
+	int n = sp_playlist_num_tracks(pl);
+	printf("Hi!\n");
+	
+	printf("%i tracks.\n", n);
+	return -1;
+}
+
+
 
 
 /**
@@ -390,7 +436,7 @@ int cmd_add_track(int argc, char **argv){
  * The first token should be the full URI of the playlist, like:
  * spotify:user:JohnSmith:playlist:68sMl8CBblj6uBcqbJsnoj
  * 
- * @return -1 if fails. 0 otherwise.
+ * @return -1.
  */
 int cmd_hide_playlist(int argc, char **argv){
 	if(argc != 2){
@@ -404,3 +450,48 @@ int cmd_hide_playlist(int argc, char **argv){
 
 
 
+
+
+
+/* ---------------------- HELP FUNCTIONS ------------------------------------ */
+
+
+/**
+ * Create a new playlist with the given name.
+ * 
+ * @param The desired name of the 
+ *        Note that if you have spaces, it should be dashes (_)
+ *        in the argument.
+ *        WARNING: name will be modified by the function.
+ *                 (It will convert dashes to spaces)
+ * 
+ * @return The URI of the created playlist. NULL if failed.
+ * */
+char * new_playlist(char* name){	
+	static const int buffSize = 200;
+	char * buff = (char*) malloc (buffSize);
+	if (buff==NULL){
+		fprintf(stderr, "Out of memory. Couldn't use malloc.\n"); 
+	}
+	
+	char* cp = name;
+	while(*cp != '\0'){
+		if(*cp == '_') (*cp) = ' ';
+		cp++;
+	}
+	
+	sp_playlist *pl = sp_playlistcontainer_add_new_playlist(g_pc, name);
+	if(!pl){
+		fprintf(stderr, "new_playlist: creating playlist with name %s failed\n", name);
+		return NULL;		
+	}
+	// Get the sp_link-handle for the playlist
+	sp_link *spl = sp_link_create_from_playlist(pl);
+	
+	// Get the URI of the link.
+	sp_link_as_string(spl, buff, buffSize);
+	return buff;
+} 
+
+
+/* ---------------------- END HELP FUNCTIONS -------------------------------- */
